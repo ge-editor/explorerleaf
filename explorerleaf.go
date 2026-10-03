@@ -4,12 +4,11 @@ package explorerleaf
 
 import (
 	"github.com/gdamore/tcell/v3"
+
 	"github.com/ge-editor/gecore/screen"
-	"github.com/ge-editor/gecore/styleresolver"
 	"github.com/ge-editor/gecore/tree"
 	"github.com/ge-editor/keychord"
 	"github.com/ge-editor/locale"
-	"github.com/ge-editor/utils"
 )
 
 func newExplorerLeaf() *ExplorerLeaf {
@@ -22,9 +21,9 @@ func newExplorerLeaf() *ExplorerLeaf {
 	return e
 }
 
-// ------------------------------------------------------------------
+// --------------------
 // Editor implement gecore Leaf interface
-// ------------------------------------------------------------------
+// --------------------
 
 // ExplorerLeaf Struct implements the gecore.tree.Leaf interface
 type ExplorerLeaf struct {
@@ -32,17 +31,14 @@ type ExplorerLeaf struct {
 	screen         *screen.Screen
 	active         bool
 
-	viewArea     utils.Rect // include mode line
-	explorerArea utils.Rect
+	viewArea     screen.Rect // include mode line
+	explorerArea screen.Rect
 
 	verticalThreshold int // Changes depending on screen size
 
 	keyDispatcher *keychord.RootNode
 
 	locale locale.Locale // Locale interface
-
-	styleResolver       *styleresolver.Manager
-	specialCharResolver *styleresolver.SpecialCharResolver
 }
 
 func (e *ExplorerLeaf) SetKeyDispatcher(km *keychord.RootNode) {
@@ -67,15 +63,15 @@ func (e *ExplorerLeaf) DispatchKey(ev tcell.EventKey) (string, keychord.KeyDispa
 	return s, res
 }
 
-// ------------------------------------------------------------------
+// --------------------
 // Methods of gecore Leaf interface
-// ------------------------------------------------------------------
+// --------------------
 
 func (e *ExplorerLeaf) LeafType() tree.LeafType {
 	return e.parentLeafType
 }
 
-func (e *ExplorerLeaf) Resize(viewArea utils.Rect) {
+func (e *ExplorerLeaf) Resize(viewArea screen.Rect) {
 	e.viewArea = viewArea
 	e.explorerArea = viewArea
 }
@@ -103,4 +99,23 @@ func (e *ExplorerLeaf) Init() {
 }
 
 func (e *ExplorerLeaf) WillClose() {
+}
+
+func (e *ExplorerLeaf) DispatchMouse(ev tcell.EventMouse) {
+	// gelog.Info("e.keyDispatcher")
+
+	btn := ev.Buttons()
+	if btn&tcell.WheelDown != 0 {
+		// x, y := ev.Position()
+		/* _, y := ev.Position()
+		gelog.Debug("Mouse", "y", y)
+		if y > 0 {
+			e.MoveCursorNextLine()
+		} else {
+			e.MoveCursorPrevLine()
+		} */
+		// マウスホイール下回転処理
+		// -> 画面の表示開始行（ScrollTop）を +1〜3 行動かす
+		// x, y := ev.Position() を使ってマウスカーソル下の要素だけスクロールさせることも可能
+	}
 }
