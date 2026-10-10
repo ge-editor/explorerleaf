@@ -3,6 +3,8 @@
 package explorerleaf
 
 import (
+	"context"
+
 	"github.com/gdamore/tcell/v3"
 
 	"github.com/ge-editor/gecore/screen"
@@ -76,7 +78,7 @@ func (e *ExplorerLeaf) Resize(viewArea screen.Rect) {
 	e.explorerArea = viewArea
 }
 
-func (e *ExplorerLeaf) Draw() bool {
+func (e *ExplorerLeaf) Draw(ctx context.Context) bool {
 	return false
 }
 
