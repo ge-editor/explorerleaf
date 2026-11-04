@@ -4,6 +4,7 @@ import (
 	"github.com/ge-editor/gecore"
 	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/gecore/tree"
+	"github.com/ge-editor/gecore/workspace"
 	"github.com/ge-editor/keychord"
 )
 
@@ -13,7 +14,18 @@ func NewLeafType(bind ExplorerKeymapBinder) *LeafType {
 	return &LeafType{
 		name:       "explorerleaf",
 		bindKeymap: bind,
+		modes:      []ModeFactory{FileModeFactory(currentWorkspaceRoots)},
 	}
+}
+
+// currentWorkspaceRoots returns the directories of the workspace currently
+// displayed by the active root tree. FileMode falls back to the working
+// directory when no workspace is active or it has no directories.
+func currentWorkspaceRoots() []string {
+	if w := workspace.Current(); w != nil {
+		return w.Directories
+	}
+	return nil
 }
 
 // Implements LeafType interface
@@ -21,46 +33,52 @@ type LeafType struct {
 	name       string
 	bindKeymap ExplorerKeymapBinder
 	ctx        tree.LeafContext
+
+	modes []ModeFactory
 }
 
-// Return *explorerleaf.Explorer as tree.Leaf *interface
-// Explorer が生成されたタイミングで keymap を作成してバインドする
-func (v *LeafType) NewLeaf() tree.Leaf {
+// AddMode adds a mode to the explorers of this type. The first one added is
+// the initial mode.
+func (v *LeafType) AddMode(f ModeFactory) *LeafType {
+	v.modes = append(v.modes, f)
+	return v
+}
+
+// newExplorer creates an ExplorerLeaf with its modes and keymap.
+func (v *LeafType) newExplorer() *ExplorerLeaf {
 	explorer := newExplorerLeaf()
 	explorer.parentLeafType = v
 	explorer.screen = screen.Get()
+	for _, f := range v.modes {
+		explorer.AddMode(f())
+	}
 
-	// Explorer が生成されたタイミングで keymap を作成してバインド
+	// Explorer が生成されたタイミングで keymap を作成してバインドする
 	km := keychord.NewRootNode()
 	if v.bindKeymap != nil {
 		v.bindKeymap(km, explorer)
 	}
 	explorer.SetKeyDispatcher(km)
+	return explorer
+}
 
-	var leaf tree.Leaf = explorer
+// Return *explorerleaf.Explorer as tree.Leaf *interface
+func (v *LeafType) NewLeaf() tree.Leaf {
+	var leaf tree.Leaf = v.newExplorer()
 	return leaf
 }
 
 // Create a new tree.Leaf (Explorer) from leaf *tree.Leaf information
 // direction: "right", "bottom"
 func (v *LeafType) NewSiblingLeaf(direction string, leaf tree.Leaf) tree.Leaf {
-	newExplorer := newExplorerLeaf()
-	newExplorer.parentLeafType = v
-	newExplorer.screen = screen.Get()
+	newExplorer := v.newExplorer()
 
-	// Explorer が生成されたタイミングで keymap を作成してバインド
-	km := keychord.NewRootNode()
-	if v.bindKeymap != nil {
-		v.bindKeymap(km, newExplorer)
+	// The new pane starts in the mode the source pane shows.
+	// (Each pane has its own mode state, so list positions are not copied.)
+	if src, ok := leaf.(*ExplorerLeaf); ok && src.current < len(newExplorer.modes) {
+		newExplorer.current = src.current
 	}
-	newExplorer.SetKeyDispatcher(km)
 
-	// Set the value of newExplorer from leafExplorer
-	//leafExplorer := leaf.(*ExplorerLeaf)
-	//newExplorer.editBuffer = leafExplorer.editBuffer  // same pointer
-	//*newExplorer.meta = *leafExplorer.meta.DeepCopy() // copy value
-
-	// Cast to tree.Leaf interface and return
 	var tl tree.Leaf = newExplorer
 	return tl
 }
@@ -87,21 +105,16 @@ func (l *LeafType) CancelManager() *gecore.EventCancelManager {
 	return l.ctx.CancelManager // .Get("draw")
 }
 
+func (l *LeafType) Opener(destination, behavior string, flag tree.OpenerFlag, data any, f func(bool, error)) {
+
+}
+
 // MinibufferLeaf は tree に属さない
 // Explorer が生成されたタイミングで keymap をバインドしない
 func NewMinibufferLeaf() *ExplorerLeaf {
 	explorer := newExplorerLeaf()
 	// ed.parentView = nil // tree に属さない leaf
 	explorer.screen = screen.Get()
-
-	// keymap をバインドしない
-	/*
-		km := keychord.NewRootNode()
-		if v.bindKeymap != nil {
-			v.bindKeymap(km, explorer)
-		}
-		explorer.SetKeyDispatcher(km)
-	*/
 
 	return explorer
 }
