@@ -4,10 +4,10 @@ go 1.26.4
 
 require (
 	github.com/gdamore/tcell/v3 v3.6.0
-	github.com/ge-editor/gecore v0.1.19
-	github.com/ge-editor/keychord v0.1.18
+	github.com/ge-editor/gecore v0.1.20
+	github.com/ge-editor/keychord v0.1.20
 	github.com/ge-editor/locale v0.1.16
-	github.com/ge-editor/theme v0.1.16
+	github.com/ge-editor/theme v0.1.20
 )
 
 require (
@@ -15,7 +15,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/ge-editor/gelog v0.1.17 // indirect
-	github.com/ge-editor/utils v0.1.17 // indirect
+	github.com/ge-editor/utils v0.1.20 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	golang.org/x/sys v0.49.0 // indirect
