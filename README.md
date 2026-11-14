@@ -14,9 +14,9 @@ directories, it lists the process working directory instead.
 - Typing filters the list. While a filter is active, files under the roots are
   searched even inside collapsed directories.
 - `.git`, `.hg`, `.svn`, and `node_modules` directories are skipped.
-- Activating a file asks gecore to open its path (`tree.OpenFile`). Any leaf
-  that implements `tree.FileOpener` (editorleaf does) can handle it; the
-  application does not have to wire anything.
+- Activating a file sends a `tree.OpenRequest` with
+  `tree.DispatchLeafRequest` to the registered `editorleaf` type. The editor
+  leaf type opens the path in the first editor leaf it finds.
 
 ## Registering the explorer pane
 
@@ -30,9 +30,7 @@ tree.LeafTypes.Register(func() tree.LeafType {
 
 `bindExplorerKeys` receives the keymap root and the ExplorerLeaf. Bind the
 navigation, activation, filtering, and mode-switching methods there. The
-package does not impose a default keymap. If no leaf can open the file,
-activating it displays an error in ge's echo area (the application can set
-`tree.OnNoFileOpener` to create a pane instead).
+package does not impose a default keymap.
 
 ## Adding a mode
 

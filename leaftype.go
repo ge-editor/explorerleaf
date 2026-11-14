@@ -105,9 +105,8 @@ func (l *LeafType) CancelManager() *gecore.EventCancelManager {
 	return l.ctx.CancelManager // .Get("draw")
 }
 
-func (l *LeafType) Opener(destination, behavior string, flag tree.OpenerFlag, data any, f func(bool, error)) {
-
-}
+// DispatchLeafRequest currently handles no requests. It is present to satisfy tree.LeafType.
+func (l *LeafType) DispatchLeafRequest(destination, behavior string, flag tree.OpenerFlag, data any, f func(bool, error)) {}
 
 // MinibufferLeaf は tree に属さない
 // Explorer が生成されたタイミングで keymap をバインドしない

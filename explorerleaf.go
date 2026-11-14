@@ -171,7 +171,7 @@ func (e *ExplorerLeaf) Activate() {
 		return
 	}
 
-	tree.Opener("editorleaf", "openfile", tree.ActiveOrFirstLeaf, tree.OpenRequest{
+	tree.DispatchLeafRequest("editorleaf", "openfile", tree.ActiveOrFirstLeaf, tree.OpenRequest{
 		Path: act.Open.Path,
 		Line: act.Open.Line,
 		Col:  act.Open.Col,
@@ -282,24 +282,25 @@ func (e *ExplorerLeaf) Draw(ctx context.Context) bool {
 	}
 	l := m.List()
 
-	// Header: [Mode] filter (shown/total)
-	header := "[" + m.Name() + "]"
-	if f := l.Filter(); f != "" {
-		header += " " + f + fmt.Sprintf("  (%d/%d)", l.Len(), l.Total())
-	}
-	e.screen.DrawString(a.X, a.Y, a.Width, header, style.Bold(true))
-
 	rows, selected := l.Visible(a.Height - 1)
 	if len(rows) == 0 && a.Height > 1 {
-		e.screen.DrawString(a.X, a.Y+1, a.Width, "(empty)", style)
+		e.screen.DrawString(a.X, a.Y, a.Width, "(empty)", style)
 	}
 	for i, it := range rows {
 		st := style
 		if i == selected {
 			st = style.Reverse(true)
 		}
-		e.screen.DrawString(a.X, a.Y+1+i, a.Width, it.display(), st)
+		e.screen.DrawString(a.X, a.Y+i, a.Width, it.display(), st)
 	}
+
+	// modeline
+	// Footer: [Mode] filter (shown/total)
+	header := "[" + m.Name() + "]"
+	if f := l.Filter(); f != "" {
+		header += " " + f + fmt.Sprintf("  (%d/%d)", l.Len(), l.Total())
+	}
+	e.screen.DrawString(a.X, a.Y+a.Height-1, a.Width, header, style.Bold(true))
 
 	// The explorer has no text cursor: hide the one the editor left.
 	if e.active {
@@ -389,8 +390,9 @@ type command struct {
 	complete func(input string) []string
 }
 
-func (c *command) Name() string        { return c.name }
-func (c *command) Aliases() []string   { return nil }
+func (c *command) Name() string { return c.name }
+
+// func (c *command) Aliases() []string   { return nil }
 func (c *command) Description() string { return c.desc }
 
 func (c *command) Execute(ctx context.Context, args []string) (bool, error) {
