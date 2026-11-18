@@ -289,18 +289,23 @@ func (e *ExplorerLeaf) Draw(ctx context.Context) bool {
 	for i, it := range rows {
 		st := style
 		if i == selected {
-			st = style.Reverse(true)
+			st = style.Background(theme.ColorCursorLineBackground)
 		}
 		e.screen.DrawString(a.X, a.Y+i, a.Width, it.display(), st)
 	}
 
 	// modeline
 	// Footer: [Mode] filter (shown/total)
-	header := "[" + m.Name() + "]"
+	header := " [" + m.Name() + "]"
 	if f := l.Filter(); f != "" {
 		header += " " + f + fmt.Sprintf("  (%d/%d)", l.Len(), l.Total())
 	}
-	e.screen.DrawString(a.X, a.Y+a.Height-1, a.Width, header, style.Bold(true))
+	if e.active {
+		style = theme.ColorModeLineActive2
+	} else {
+		style = theme.ColorModelineInactive
+	}
+	e.screen.DrawString(a.X, a.Y+a.Height-1, a.Width, header, style)
 
 	// The explorer has no text cursor: hide the one the editor left.
 	if e.active {

@@ -200,3 +200,50 @@ func TestFileModeNoRootsFallsBackToCwd(t *testing.T) {
 		t.Fatal("expected the current directory to be listed")
 	}
 }
+
+func TestDisplayDir(t *testing.T) {
+	sep := string(filepath.Separator)
+	home := sep + "home" + sep + "taro"
+	for in, want := range map[string]string{
+		home:                         "~",
+		home + sep + "proj":          "~" + sep + "proj",
+		home + sep + "a" + sep + "b": "~" + sep + "a" + sep + "b",
+		home + "x":                   home + "x", // another directory with the same prefix
+		sep + "usr" + sep + "local":  sep + "usr" + sep + "local",
+	} {
+		if got := displayDir(in, home); got != want {
+			t.Errorf("displayDir(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := displayDir(home, ""); got != home {
+		t.Errorf("no home: %q", got)
+	}
+}
+
+// A root under the home directory is shown with "~"; its item keeps the real
+// path, so opening and filtering are not affected.
+func TestFileModeShowsHomeAsTilde(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(home, "proj")
+	writeFile(t, filepath.Join(root, "a.go"))
+
+	old := userHomeDir
+	userHomeDir = func() (string, error) { return home, nil }
+	defer func() { userHomeDir = old }()
+
+	m := newTestMode(root)
+	if err := m.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := m.List().Visible(m.List().Len())
+	if len(rows) == 0 {
+		t.Fatal("no rows")
+	}
+	first := rows[0]
+	if want := "- ~" + string(filepath.Separator) + "proj/"; first.display() != want {
+		t.Errorf("display = %q, want %q", first.display(), want)
+	}
+	if first.Text != root || first.Key != root {
+		t.Errorf("the item changed: text %q key %q", first.Text, first.Key)
+	}
+}

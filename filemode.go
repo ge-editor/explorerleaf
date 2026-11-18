@@ -141,14 +141,27 @@ func (m *FileMode) rootDirs() []string {
 	return out
 }
 
+// userHomeDir is os.UserHomeDir; a variable so that the tests can set it.
+var userHomeDir = os.UserHomeDir
+
+// displayDir shows the home directory as "~". It only changes what is shown:
+// the path of the item stays the real one.
+func displayDir(dir, home string) string {
+	if home != "" && (dir == home || strings.HasPrefix(dir, home+string(filepath.Separator))) {
+		return "~" + dir[len(home):]
+	}
+	return dir
+}
+
 func (m *FileMode) treeItems() []Item {
 	var items []Item
+	home, _ := userHomeDir()
 	for _, root := range m.rootDirs() {
 		if !m.seeded[root] {
 			m.seeded[root] = true
 			m.expanded[root] = true
 		}
-		items = append(items, m.dirItem(root, root, 0))
+		items = append(items, m.dirItemShown(root, root, displayDir(root, home), 0))
 		if m.expanded[root] {
 			items = m.appendDir(items, root, 1)
 		}
@@ -157,6 +170,12 @@ func (m *FileMode) treeItems() []Item {
 }
 
 func (m *FileMode) dirItem(path, label string, depth int) Item {
+	return m.dirItemShown(path, label, label, depth)
+}
+
+// dirItemShown is dirItem with another text to show than the label (which
+// the filter looks at).
+func (m *FileMode) dirItemShown(path, label, shown string, depth int) Item {
 	marker := "+ "
 	if m.expanded[path] {
 		marker = "- "
@@ -164,7 +183,7 @@ func (m *FileMode) dirItem(path, label string, depth int) Item {
 	return Item{
 		Key:     path,
 		Text:    label,
-		Display: strings.Repeat("  ", depth) + marker + label + "/",
+		Display: strings.Repeat("  ", depth) + marker + shown + "/",
 		Data:    fileEntry{Path: path, IsDir: true},
 	}
 }
