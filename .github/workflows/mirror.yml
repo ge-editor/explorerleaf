@@ -6,8 +6,6 @@ on:
       - '**'
     tags:
       - '*'
-  delete:
-  workflow_dispatch:
 
 jobs:
   mirror:
@@ -17,19 +15,19 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Configure remote
         run: |
-          git remote add codeberg https://ge-editor:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/ge-editor/explorerleaf.git
+          git remote add codeberg \
+          https://${{ secrets.CODEBERG_TOKEN }}@codeberg.org/ge-editor/explorerleaf.git
 
       - name: Push mirror (retry)
         run: |
           for i in {1..3}; do
-            git push --prune codeberg +refs/remotes/origin/*:refs/heads/* +refs/tags/*:refs/tags/* && break
+            git push --mirror codeberg && break
             echo "Retry $i..."
             sleep 15
           done
