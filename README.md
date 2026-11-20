@@ -1,5 +1,7 @@
 # explorerleaf
 
+- Add GitHub to Codeberg repository mirroring configuration
+
 `explorerleaf` is a pane for browsing files and other lists in the ge editor. A
 single ExplorerLeaf can host multiple modes. Each pane has independent mode
 state, including its list, selection, and filter.
