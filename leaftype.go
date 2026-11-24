@@ -2,6 +2,7 @@ package explorerleaf
 
 import (
 	"github.com/ge-editor/gecore"
+	"github.com/ge-editor/gecore/pathscope"
 	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/gecore/tree"
 	"github.com/ge-editor/gecore/workspace"
@@ -14,7 +15,10 @@ func NewLeafType(bind ExplorerKeymapBinder) *LeafType {
 	return &LeafType{
 		name:       "explorerleaf",
 		bindKeymap: bind,
-		modes:      []ModeFactory{FileModeFactory(currentWorkspaceRoots)},
+		modes: []ModeFactory{
+			FileModeFactory(currentWorkspaceRoots),
+			SearchModeFactory(searchRoots, searchDefaultScope),
+		},
 	}
 }
 
@@ -26,6 +30,28 @@ func currentWorkspaceRoots() []string {
 		return w.Directories
 	}
 	return nil
+}
+
+// searchRoots returns the directories a search of the given scope covers: the
+// current workspace, or every open workspace.
+func searchRoots(k pathscope.Kind) []string {
+	if k == pathscope.Current {
+		return currentWorkspaceRoots()
+	}
+	var dirs []string
+	for _, w := range workspace.All() {
+		dirs = append(dirs, w.Directories...)
+	}
+	return dirs
+}
+
+// searchDefaultScope is the PathScope setting of the current workspace for
+// the search.
+func searchDefaultScope() pathscope.Kind {
+	if w := workspace.Current(); w != nil {
+		return w.Scope(pathscope.FeatureSearch)
+	}
+	return pathscope.Current
 }
 
 // Implements LeafType interface

@@ -1,6 +1,10 @@
 package explorerleaf
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/gdamore/tcell/v3"
+)
 
 // Item is one row of a List.
 //
@@ -19,6 +23,10 @@ type Item struct {
 	Display string
 	// Data is the mode-specific payload.
 	Data any
+	// Badge is a short mark drawn at the right end of the row (a git status
+	// letter). BadgeColor is its color; the default color when zero.
+	Badge      string
+	BadgeColor tcell.Color
 }
 
 func (it Item) display() string {
@@ -109,6 +117,30 @@ func (l *List) Selected() (Item, bool) {
 		return Item{}, false
 	}
 	return l.items[l.view[l.cursor]], true
+}
+
+// SelectRow puts the cursor on the i-th drawn row (0 is the top row of the
+// last Visible call). It reports whether there is such a row.
+func (l *List) SelectRow(i int) bool {
+	idx := l.top + i
+	if i < 0 || idx >= len(l.view) {
+		return false
+	}
+	l.cursor = idx
+	return true
+}
+
+// SelectKey puts the cursor on the row with the given Key. It reports
+// whether the row is shown.
+func (l *List) SelectKey(key string) bool {
+	for vi, ii := range l.view {
+		if l.items[ii].Key == key {
+			l.cursor = vi
+			l.clamp()
+			return true
+		}
+	}
+	return false
 }
 
 // Move moves the cursor by delta rows and stops at both ends.

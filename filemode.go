@@ -33,6 +33,18 @@ type FileMode struct {
 	expanded map[string]bool
 	seeded   map[string]bool // roots whose initial expansion was applied
 	flat     []Item          // cache of the whole-workspace list, nil = not built
+
+	noGit bool        // true: no git status marks
+	git   gitStatuses // read by Reload
+}
+
+// SetGitStatus switches the git status marks (M, A, U ...) on or off. They
+// are on by default, and are read again by Reload.
+func (m *FileMode) SetGitStatus(on bool) {
+	m.noGit = !on
+	if !on {
+		m.git = nil
+	}
 }
 
 // FileModeFactory returns a ModeFactory. roots supplies the directories to list
@@ -70,6 +82,10 @@ func (m *FileMode) List() *List  { return &m.list }
 // Reload rereads the directories.
 func (m *FileMode) Reload() error {
 	m.flat = nil
+	m.git = nil
+	if !m.noGit {
+		m.git = loadGitStatuses(m.rootDirs())
+	}
 	if len(m.rootDirs()) == 0 {
 		m.list.SetItems(nil)
 		return errors.New("explorer: no directory to list")
@@ -180,12 +196,14 @@ func (m *FileMode) dirItemShown(path, label, shown string, depth int) Item {
 	if m.expanded[path] {
 		marker = "- "
 	}
-	return Item{
+	it := Item{
 		Key:     path,
 		Text:    label,
 		Display: strings.Repeat("  ", depth) + marker + shown + "/",
 		Data:    fileEntry{Path: path, IsDir: true},
 	}
+	m.git.mark(&it, path, true)
+	return it
 }
 
 func (m *FileMode) appendDir(items []Item, dir string, depth int) []Item {
@@ -224,12 +242,14 @@ func (m *FileMode) appendDir(items []Item, dir string, depth int) []Item {
 			}
 			continue
 		}
-		items = append(items, Item{
+		it := Item{
 			Key:     c.path,
 			Text:    c.name,
 			Display: strings.Repeat("  ", depth) + "  " + c.name,
 			Data:    fileEntry{Path: c.path},
-		})
+		}
+		m.git.mark(&it, c.path, false)
+		items = append(items, it)
 	}
 	return items
 }
@@ -266,11 +286,13 @@ func (m *FileMode) flatItems() []Item {
 			if len(roots) > 1 {
 				text = filepath.Base(root) + "/" + text
 			}
-			items = append(items, Item{
+			it := Item{
 				Key:  p,
 				Text: text,
 				Data: fileEntry{Path: p},
-			})
+			}
+			m.git.mark(&it, p, false)
+			items = append(items, it)
 			return nil
 		})
 	}

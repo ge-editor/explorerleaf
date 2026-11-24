@@ -40,3 +40,21 @@ type Mode interface {
 // ModeFactory creates a fresh Mode. Each ExplorerLeaf calls the factories
 // of its LeafType once, so panes never share mode state.
 type ModeFactory func() Mode
+
+// Folder is a Mode whose rows form a tree that can be folded (the + and -
+// keys).
+type Folder interface {
+	// Fold folds (true) or unfolds (false) the row it. It returns the Key of
+	// the row the cursor should be on afterwards ("" keeps it). Folding a
+	// row that is folded already, or a leaf row, goes to the parent row.
+	Fold(it Item, fold bool) (key string)
+}
+
+// Replacer is a Mode that can replace what its rows show in the files.
+type Replacer interface {
+	// BuildReplace makes the request that replaces the matches with text.
+	// scope is "all" (every row), "node" (the selected row and the rows
+	// below it), "file" (the file of the selected row) or "line" (the
+	// selected line only).
+	BuildReplace(with, scope string) (tree.ReplaceRequest, error)
+}

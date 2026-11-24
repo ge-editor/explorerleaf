@@ -48,6 +48,12 @@ type ExplorerLeaf struct {
 
 	modes   []Mode
 	current int
+	// leftDown is true while the left button is held, so that a press is
+	// one click even though the terminal repeats the event while dragging.
+	leftDown bool
+	// modeEntered is called when the pane switches to a mode (see
+	// SetModeEntered).
+	modeEntered func(name string)
 	// needReload makes the next Draw reload the current mode.
 	needReload bool
 }
@@ -111,6 +117,58 @@ func (e *ExplorerLeaf) selectMode(i int) {
 	e.current = i
 	// The mode keeps its list, cursor and filter. Only refresh its items.
 	e.needReload = true
+	if e.modeEntered != nil {
+		e.modeEntered(e.modes[i].Name())
+	}
+}
+
+// SetModeEntered sets a function that is called with the name of a mode when
+// the pane switches to it (Tab, SetMode). The host uses it to open the search
+// form when the pane comes to the Search mode.
+func (e *ExplorerLeaf) SetModeEntered(f func(name string)) { e.modeEntered = f }
+
+// SearchMode returns the search mode of the pane, or nil.
+func (e *ExplorerLeaf) SearchMode() *SearchMode {
+	for _, m := range e.modes {
+		if sm, ok := m.(*SearchMode); ok {
+			return sm
+		}
+	}
+	return nil
+}
+
+// InSearchMode reports that the Search mode is the one shown.
+func (e *ExplorerLeaf) InSearchMode() bool {
+	_, ok := e.Mode().(*SearchMode)
+	return ok
+}
+
+// Expand (the + key) unfolds the selected row of a tree mode; in the other
+// modes it types "+" into the filter.
+func (e *ExplorerLeaf) Expand() { e.fold(false, "+") }
+
+// Collapse (the - key) folds the selected row of a tree mode, or goes to its
+// parent when it is folded already; in the other modes it types "-" into the
+// filter.
+func (e *ExplorerLeaf) Collapse() { e.fold(true, "-") }
+
+func (e *ExplorerLeaf) fold(fold bool, typed string) {
+	m := e.Mode()
+	if m == nil {
+		return
+	}
+	f, ok := m.(Folder)
+	if !ok {
+		e.InsertFilter(typed)
+		return
+	}
+	it, ok := m.List().Selected()
+	if !ok {
+		return
+	}
+	if key := f.Fold(it, fold); key != "" {
+		m.List().SelectKey(key)
+	}
 }
 
 // --------------------
@@ -155,6 +213,10 @@ func (e *ExplorerLeaf) Reload() {
 
 // Activate runs Enter on the selected row.
 func (e *ExplorerLeaf) Activate() {
+	e.activateSelected()
+}
+
+func (e *ExplorerLeaf) activateSelected() {
 	m := e.Mode()
 	if m == nil {
 		return
@@ -163,7 +225,11 @@ func (e *ExplorerLeaf) Activate() {
 	if !ok {
 		return
 	}
-	act := m.Activate(it)
+	e.run(m.Activate(it))
+}
+
+// run does what a mode asked for on Enter or a click.
+func (e *ExplorerLeaf) run(act Activation) {
 	if act.Message != "" {
 		gecore.Echo.AddText(act.Message)
 	}
@@ -225,7 +291,16 @@ func (e *ExplorerLeaf) DispatchKey(ev tcell.EventKey) (string, keychord.KeyDispa
 		// An unbound Ctrl/Alt/Meta combination is not text.
 		if ev.Modifiers()&(tcell.ModCtrl|tcell.ModAlt|tcell.ModMeta) == 0 {
 			if str := ev.Str(); isPrintable(str) {
-				e.InsertFilter(str)
+				// + and - fold the tree of a tree mode (the key "+" cannot
+				// be bound by keychord); elsewhere they are typed.
+				switch str {
+				case "+":
+					e.Expand()
+				case "-":
+					e.Collapse()
+				default:
+					e.InsertFilter(str)
+				}
 			}
 		}
 	}
@@ -291,12 +366,27 @@ func (e *ExplorerLeaf) Draw(ctx context.Context) bool {
 		if i == selected {
 			st = style.Background(theme.ColorCursorLineBackground)
 		}
-		e.screen.DrawString(a.X, a.Y+i, a.Width, it.display(), st)
+		if it.Badge == "" || a.Width < 6 {
+			e.screen.DrawString(a.X, a.Y+i, a.Width, it.display(), st)
+			continue
+		}
+		// The mark is at the right end; the name is cut before it.
+		bw := len(it.Badge)
+		e.screen.DrawString(a.X, a.Y+i, a.Width-bw-2, it.display(), st)
+		bst := st
+		if it.BadgeColor != tcell.ColorDefault {
+			bst = st.Foreground(it.BadgeColor)
+		}
+		e.screen.DrawString(a.X+a.Width-bw-1, a.Y+i, bw, it.Badge, bst)
 	}
 
 	// modeline
 	// Footer: [Mode] filter (shown/total)
-	header := " [" + m.Name() + "]"
+	name := m.Name()
+	if l, ok := m.(interface{ Label() string }); ok {
+		name = l.Label()
+	}
+	header := " [" + name + "]"
 	if f := l.Filter(); f != "" {
 		header += " " + f + fmt.Sprintf("  (%d/%d)", l.Len(), l.Total())
 	}
@@ -344,7 +434,32 @@ func (e *ExplorerLeaf) DispatchMouse(ev tcell.EventMouse) {
 		e.listOp(func(l *List) { l.Move(3) })
 	case btn&tcell.WheelUp != 0:
 		e.listOp(func(l *List) { l.Move(-3) })
+	case btn&tcell.Button1 != 0:
+		if !e.leftDown {
+			e.leftDown = true
+			e.click(ev.Position())
+		}
+	default:
+		e.leftDown = false
 	}
+}
+
+// click selects the row at (x, y) and activates it, as Enter does: a file
+// is opened in the editor, a directory is expanded or collapsed.
+func (e *ExplorerLeaf) click(x, y int) {
+	a := e.explorerArea
+	if x < a.X || x >= a.X+a.Width || y < a.Y || y >= a.Y+a.Height-1 {
+		return // outside, or on the mode line
+	}
+	m := e.Mode()
+	if m == nil {
+		return
+	}
+	// Draw has set the scroll position; the row is counted from the top.
+	if !m.List().SelectRow(y - a.Y) {
+		return
+	}
+	e.activateSelected()
 }
 
 // --------------------
@@ -352,6 +467,10 @@ func (e *ExplorerLeaf) DispatchMouse(ev tcell.EventMouse) {
 // --------------------
 
 func (e *ExplorerLeaf) Commands() []excommand.ExCommand {
+	return append(e.baseCommands(), e.searchCommands()...)
+}
+
+func (e *ExplorerLeaf) baseCommands() []excommand.ExCommand {
 	return []excommand.ExCommand{
 		&command{
 			name: "explorer-refresh",
