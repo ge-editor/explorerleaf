@@ -42,10 +42,13 @@ Replace: ...
 
 - The search runs while typing (after 160 ms, in the background), and again
   when a condition is toggled. Only the first line of Search is searched.
-- Keys of the form: `Tab` other field, `Alt+r/c/w/x` Replace / Match Case /
-  Whole word / Use Regex, `Alt+s` scope, `C-s` / `C-r` next / previous
-  matching line of the tree, `Alt+p` / `Alt+n` history, `Alt+Enter` finish
-  (Replace on: replace the selected row), `Alt+a` replace all.
+- Keys of the form: `Tab` / `Shift+Tab` move the focus (Search, Replace while
+  it is on, the row of options), `Enter` / `C-j` type a newline, `C-s` / `C-r`
+  next / previous matching line of the tree, `Alt+p` / `Alt+n` history,
+  `Alt+Enter` (Replace on) replace the selected row, `Alt+a` replace all,
+  `C-g` close the form. On the row of options (Replace, Match Case, Whole
+  word, Use Regex, Scope) `Left` / `Right` (`C-b` / `C-f`) choose an option
+  and `Space` switches it.
 - The result is a tree. `Enter` on a directory or file row folds or unfolds
   it, as in Files mode; `+` and `-` do it too (on a line, or a row that is
   folded already, `-` goes to the parent):
@@ -60,7 +63,8 @@ Replace: ...
   `Enter`.
 - The directories searched follow a PathScope (feature `search`, default
   `current`): `current` is the current workspace, `workspaces` and `all` are
-  every open workspace. `Alt+s` in the form toggles current / workspaces, and
+  every open workspace. The Scope option of the form toggles current /
+  workspaces, and
   `explorer-search-scope KIND` sets it; the mode line shows
   `[Search:current 12/3]` (lines/files). The workspace setting is the
   `search` entry of the PathScope settings, next to `mark` and `recent`.
